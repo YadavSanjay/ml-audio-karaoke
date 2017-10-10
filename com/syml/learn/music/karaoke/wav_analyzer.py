@@ -12,6 +12,7 @@ import struct;
 import os;
 import pickle;
 import yaml;
+import numpy as np;
 
 
 class WavAnalyser:
@@ -134,7 +135,8 @@ class WavAnalyser:
                 sum_V = numpy.add(sum_V,n)
                 sum_V = self.normalizeChannel(sum_V)
             path = dest + 'stem_V_normalized.wav'
-            librosa.output.write_wav(path, sum_V, v[1], norm=True)
+            # librosa.output.write_wav(path, sum_V, v[1], norm=True)
+            write_wav_16bitpcm(path, sum_V, v[1])
             print('normalized V...written..' + path)
 
         # add all Instruments
@@ -144,14 +146,16 @@ class WavAnalyser:
                 sum_I = numpy.add(sum_I, n)
                 sum_I = self.normalizeChannel(sum_I)
             path = dest + 'stem_I_normalized.wav'
-            librosa.output.write_wav(path, sum_I, v[1], norm=True)
+            # librosa.output.write_wav(path, sum_I, v[1], norm=True)
+            write_wav_16bitpcm(path, sum_I, v[1])
             print('normalized I...written..' + path)
 
         # final mixture M
         sum_M = numpy.add(sum_V,sum_I)
         sum_M=self.normalizeChannel(sum_M)
         path = dest + 'stem_M_normalized.wav'
-        librosa.output.write_wav(path, sum_M, v[1], norm=True)
+        # librosa.output.write_wav(path, sum_M, v[1], norm=True)
+        write_wav_16bitpcm(path, sum_M, v[1])
         print('normalized M...written..' + path)
         print('all normalized...')
 
@@ -164,13 +168,13 @@ class WavAnalyser:
         print('M -->> ', numpy.shape(sum_M), numpy.max(sum_M), numpy.min(sum_M))
         #self.showSpectrum(sum_M, sr, instr='M')
 
-        stftV = librosa.core.stft(sum_V)
+        stftV = librosa.core.stft(sum_V,n_fft=1024)
         print('V stft done...')
-        stftI = librosa.core.stft(sum_I)
+        stftI = librosa.core.stft(sum_I,n_fft=1024)
         print('I stft done...')
-        stftM = librosa.core.stft(sum_M)
+        stftM = librosa.core.stft(sum_M,n_fft=1024)
         print('M stft done...')
-        stftOrig = librosa.core.stft(self._mixY)
+        stftOrig = librosa.core.stft(self._mixY,n_fft=1024)
         print('orig M stft done...')
 
         print ('all stft done...')
@@ -180,7 +184,8 @@ class WavAnalyser:
         nTimeSlots = stftShape[1]
 
         path = dest + 'orig_M_normalized.wav'
-        librosa.output.write_wav(path, self._mixY, self._sr, norm=True)
+        # librosa.output.write_wav(path, self._mixY, self._sr, norm=True)
+        write_wav_16bitpcm(path, self._mixY, self._sr)
         print('orig M...written..' + path)
 
         vIdealMask = None
@@ -192,7 +197,7 @@ class WavAnalyser:
             vIdealMask = numpy.zeros(stftShape,dtype=numpy.bool)
             print('start binary mask gen -->>')
             for i in range(0, nBins):
-                print('binary mask for bin #',i)
+                # print('binary mask for bin #',i)
                 for j in range(0,nTimeSlots):
                     ampV = numpy.absolute(stftV[i,j])
                     ampI = numpy.absolute(stftI[i, j])
@@ -224,7 +229,7 @@ class WavAnalyser:
             vIdealMask = masks['vMask']
         print('loaded masks...')
 
-        stftOrig = librosa.core.stft(self._mixY)
+        stftOrig = librosa.core.stft(self._mixY,n_fft=1024)
         stftShape = numpy.shape(stftOrig)
         nBins = stftShape[0]
         nTimeSlots = stftShape[1]
@@ -247,11 +252,13 @@ class WavAnalyser:
         print('inverse stft V done...')
 
         path = dest + 'extract_V_normalized.wav'
-        librosa.output.write_wav(path, vEx, self._sr, norm=True)
+        # librosa.output.write_wav(path, vEx, self._sr, norm=True)
+        write_wav_16bitpcm(path, vEx, self._sr)
         print('extract V...written..' + path)
 
         path = dest + 'extract_I_normalized.wav'
-        librosa.output.write_wav(path, iEx, self._sr, norm=True)
+        # librosa.output.write_wav(path, iEx, self._sr, norm=True)
+        write_wav_16bitpcm(path, iEx, self._sr)
         print('extract I...written..' + path)
 
 
@@ -282,8 +289,6 @@ class WavAnalyser:
 
         # Make the figure layout compact
         plt.tight_layout()
-
-
 
     def rawWavFile(self,fileName):
         # open wav file without librosa
@@ -321,7 +326,7 @@ class WavAnalyser:
                 end = timeit.timeit()
                 print('time for stft =', end - start)
                 start = timeit.timeit()
-                stftTransform2 = librosa.core.stft(sig)
+                stftTransform2 = librosa.core.stft(sig,n_fft=1024)
                 end = timeit.timeit()
                 print ('time for librosa stft =',end-start)
                 librosa.display.specshow(stftTransform2)
@@ -329,3 +334,7 @@ class WavAnalyser:
 
 
         raw.close();
+
+def write_wav_16bitpcm(path, audio_ts, sample_rate):
+    maxv = np.iinfo(np.int16).max
+    librosa.output.write_wav(path, (audio_ts * maxv).astype(np.int16), sample_rate, norm=True);

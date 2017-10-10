@@ -4,19 +4,19 @@ import librosa
 import numpy as np
 import pickle
 
-BINS = 1025
-SAMPLE_WIDTH = 20
+BINS = 513
+SAMPLE_WIDTH = 10
 
 learned_model_ckpt = "D:/tmp/tensorflow_logs/music/karaoke_model.ckpt"
 learned_model_ckpt_meta = "D:/tmp/tensorflow_logs/music/karaoke_model.ckpt.meta"
-masks_dir = "D:/Tools/ml/music/karaoke/masks/"
+masks_dir = "D:/Tools/ml/music/karaoke/masks512/"
 
 
 def generate_test_samples(song):
     songFile = masks_dir + song + '/orig_M_normalized.wav'
     print('...loading test song..', song)
     y, sr = librosa.core.load(path=songFile, sr=None)
-    stftOrig = librosa.core.stft(y)
+    stftOrig = librosa.core.stft(y,n_fft=1024)
     size = np.shape(stftOrig)
     nTimeSlots = size[1]
     linearShape = (BINS * SAMPLE_WIDTH)
@@ -70,7 +70,7 @@ def generate_probabilistic_mask(ml_learned_masks ,alpha=0.5):
     nbins = shape[1]
     probabilistic_mask = np.zeros((nbins,nsamples))
     # skip first 20 entries for mean prediction
-    for i in range(19,nsamples):
+    for i in range(SAMPLE_WIDTH -1,nsamples):
         for j in range(i, i-SAMPLE_WIDTH, -1):
             learned_mask = learned_masks[j]
             learned_mask_col_indx = i - j
@@ -92,7 +92,7 @@ def generate_mix_for_karaoke(song, mean_prob_mask):
     songFile = masks_dir + song + '/orig_M_normalized.wav'
     print('...loading song..', song)
     y, sr = librosa.core.load(path=songFile, sr=None)
-    stftOrig = librosa.core.stft(y)
+    stftOrig = librosa.core.stft(y,n_fft=1024)
     size = np.shape(stftOrig)
     nBins = size[0]
     nTimeSlots = size[1]
@@ -120,7 +120,7 @@ def remove_voice_from_song(song):
     maskFile = masks_dir + song + '/masks.pkl'
     print('...loading song..', song)
     y, sr = librosa.core.load(path=songFile, sr=None)
-    stftOrig = librosa.core.stft(y)
+    stftOrig = librosa.core.stft(y,n_fft=1024)
     vIdealMask = None
     with open(maskFile, 'rb') as file:
         masks = pickle.load(file=file)
@@ -150,7 +150,7 @@ def remove_voice_from_song(song):
     librosa.output.write_wav(i_extract_file, (inverse_i_extract * maxv).astype(np.int16), sr)
 
 
-test_song = "HezekiahJones_BorrowedHeart"
+test_song = "Creepoid_OldTree"
 test_samples = generate_test_samples(test_song)
 ml_learned_masks = analyze_test_song(test_song,test_samples)
 mean_prob_masks = generate_probabilistic_mask(ml_learned_masks)

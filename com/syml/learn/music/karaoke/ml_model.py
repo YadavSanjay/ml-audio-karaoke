@@ -7,12 +7,12 @@ import os
 
 from com.syml.learn.music.karaoke.medleydb_analyzer import MedleyDBAnalyser
 
-N_BINS  = 1025
-N_SAMPLES = 20
+N_BINS = 513
+N_SAMPLES = 10
 VECTOR_SIZE=N_BINS * N_SAMPLES
 
 logs_path = "D:/tmp/tensorflow_logs/music"
-destDir = 'D:/Tools/ml/music/karaoke/masks/'
+destDir = 'D:/Tools/ml/music/karaoke/masks512/'
 rootDir = 'D:/Tools/store/medleydb/MedleyDB/Audio/'
 
 class VocalSeparator:
@@ -25,7 +25,7 @@ class VocalSeparator:
         return
 
     def _weightVariable(self,shape,vname):
-        initial = tf.truncated_normal(shape, stddev=0.007)
+        initial = tf.truncated_normal(shape, stddev=0.01)
         return tf.Variable(initial,name=vname)
 
     def _biasVariable(self,shape,constVal,vname):
@@ -44,7 +44,7 @@ class VocalSeparator:
             Wyz = self._weightVariable([VECTOR_SIZE, VECTOR_SIZE],"w2")
 
         with tf.name_scope("biases"):
-            by = self._biasVariable([VECTOR_SIZE],0.005,"b1")
+            by = self._biasVariable([VECTOR_SIZE],0.0,"b1")
 
         with tf.name_scope("model"):
             y0 = tf.matmul(x, Wxy) + by;
@@ -72,7 +72,7 @@ class VocalSeparator:
             # self._distance = tf.sqrt(tf.reduce_sum(tf.square(tf.subtract(z_, p1)), 1))
             # tf.summary.histogram("distance", self._distance)
 
-        learning_rate = 1.0e-4
+        learning_rate = 1.0e-2
         with tf.name_scope('train'):
             train_op = tf.train.AdamOptimizer(learning_rate).minimize(self._cross_entropy);
             self._train_op=train_op
@@ -86,8 +86,8 @@ class VocalSeparator:
         sess.run(tf.global_variables_initializer())
         saver = tf.train.Saver()
 
-        NUM_EPOCHS = 20
-        BATCH_SIZE = 20
+        NUM_EPOCHS = 25
+        BATCH_SIZE = 40
         j = 0
         for epoch in range(0,NUM_EPOCHS):
             i=0
@@ -95,7 +95,7 @@ class VocalSeparator:
             for batch in batches:
                 if i == 0:
                     start_time = time.time()
-                if i % 10 == 0:
+                if i % 100 == 0:
                     [train_accuracy, s] = sess.run([self._accuracy_1, self.summ], feed_dict={self.x: batch[0], self.z_: batch[1]})
                     writer.add_summary(s, j)
                     j=j+1

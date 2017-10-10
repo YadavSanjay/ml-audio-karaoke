@@ -7,10 +7,9 @@ from random import shuffle
 import numpy as np
 import librosa
 
-
-BINS = 1025
-TIME_SLOTS = 20
-SAMPLE_JUMP = 60
+BINS = 513
+TIME_SLOTS = 10
+SAMPLE_JUMP = 10
 
 class MedleyDBAnalyser:
 
@@ -23,7 +22,7 @@ class MedleyDBAnalyser:
         # This is takes hours to complete
 
         # remove incomplete output directories
-        songs = list(f for f in os.listdir(self._destDir) if os.path.isdir(s=self._destDir + f))
+        songs = list(f for f in os.listdir(self._destDir) if os.path.isdir(os.path.join(self._destDir, f)))
         print('output dirs already present...', len(songs))
         for s in songs:
             songDir = self._destDir + s + '/'
@@ -33,11 +32,11 @@ class MedleyDBAnalyser:
                 print('removing empty/incomplete dir...', songDir)
                 shutil.rmtree(songDir)
 
-        songs = list(f for f in os.listdir(self._rootDir) if os.path.isdir(s=self._rootDir + f))
+        songs = list(f for f in os.listdir(self._rootDir) if os.path.isdir(os.path.join(self._rootDir, f)))
         w = WavAnalyser(rootDir=self._rootDir, destDir=self._destDir)
         print('start processing songs from src dir to generate masks...')
         for song in songs:
-            if os.path.isdir(s=self._destDir + song):
+            if os.path.isdir(os.path.join(self._destDir, song)):
                 print('already processed so skipping -->', song)
                 continue
 
@@ -53,7 +52,7 @@ class MedleyDBAnalyser:
             os.remove(sampleFile)
 
         # check vocal instrument mix songs
-        songs = list(f for f in os.listdir(destDir) if os.path.isdir(destDir + f))
+        songs = list(f for f in os.listdir(destDir) if os.path.isdir(os.path.join(destDir, f)))
         vocalOnly = []
         instrumentOnly = []
         mixSongs = []
@@ -81,8 +80,8 @@ class MedleyDBAnalyser:
                         vIdealMask = masks['vMask']
                         size = np.shape(vIdealMask)
                         nTimeSlots = size[1]
-                        nTimeSlots = nTimeSlots - 60
-                        nSamples = int(nTimeSlots / 60)
+                        nTimeSlots = nTimeSlots - TIME_SLOTS
+                        nSamples = int(nTimeSlots / TIME_SLOTS)
                         sampleCount[s]=nSamples
 
         print('vocal only count ->', len(vocalOnly))
@@ -149,7 +148,7 @@ class MedleyDBAnalyser:
         maskFile = self._destDir + song + '/masks.pkl'
         print('...loading song..',song)
         y, sr = librosa.core.load(path=songFile, sr=None)
-        stftOrig = librosa.core.stft(y)
+        stftOrig = librosa.core.stft(y,n_fft=1024)
         vIdealMask=None
         with open(maskFile, 'rb') as file:
             masks = pickle.load(file=file)
@@ -171,8 +170,8 @@ class MedleyDBAnalyser:
             x = np.reshape(a=x,newshape=linearShape,order='F')
             _y = np.reshape(a=_y, newshape=linearShape, order='F')
 
-            fn_abs = lambda t: np.float32(np.absolute(t))
-            x = np.array([fn_abs(t) for t in x])
+            fn_abs = lambda t: np.float32(np.abs(t))
+            x = np.array([np.square(fn_abs(t)) for t in x])
 
             fn_bit = lambda t: np.float32(1 if t else 0)
             _y = np.array([fn_bit(t) for t in _y])
@@ -188,17 +187,17 @@ if __name__ == '__main__':
     import sys
     print(sys.version)
 
-    rootDir = '/path/to/MedleyDB/Audio/'
-    destDir = '/path/to/masks/'
+    rootDir = 'D:/Tools/store/medleydb/MedleyDB/Audio/'
+    destDir = 'D:/Tools/ml/music/karaoke/masks512/'
 
     dbAnalyser =  MedleyDBAnalyser(rootDir,destDir)
 
 
     count = 0
-    samples  = dbAnalyser.getSamples('CelestialShore_DieForUs')
-    for s in samples:
-        print(count,s[0].dtype,np.shape(s[0]),s[1].dtype,np.shape(s[1]))
-        count += 1
+    # samples  = dbAnalyser.getSamples('CelestialShore_DieForUs')
+    # for s in samples:
+    #     print(count,s[0].dtype,np.shape(s[0]),s[1].dtype,np.shape(s[1]))
+    #     count += 1
 
     count = 0
     # allSamples = dbAnalyser.getTrainingSamples()
@@ -207,7 +206,7 @@ if __name__ == '__main__':
     #     count += 1
 
     # dbAnalyser.generateMasks()
-    # dbAnalyser.pickSampleSongs()
+    dbAnalyser.pickSampleSongs()
     batches = dbAnalyser.getSampleBatch()
     batchCount = 0
     for s in batches:
